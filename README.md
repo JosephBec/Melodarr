@@ -52,7 +52,7 @@ Melodarr leverages the following open-source projects:
 
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 - [scdl](https://github.com/flyingrub/scdl)
-- [spotdl](https://github.com/spotDL/spotify-downloader)
+- [zotify](https://github.com/zotify-dev/zotify)
 - [mutagen](https://mutagen.readthedocs.io/en/latest/)
 
 Please refer to the `LICENSES/` directory for detailed license information of these dependencies.
