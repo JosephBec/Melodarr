@@ -1,0 +1,14 @@
+[
+  {
+    "url": "https://www.youtube.com/playlist?list=PLKIsbG8iT8bsNTizG8Byx2goiWU3nBxs6",
+    "tags": ["gym music"]
+  },
+  {
+    "url": "https://soundcloud.com/yourplaylist",
+    "tags": ["relaxing"]
+  },
+  {
+    "url": "https://open.spotify.com/playlist/xyz",
+    "tags": ["focus"]
+  }
+]
