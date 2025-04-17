@@ -13,44 +13,52 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
     with open(config_JSON_path) as config:
         config_content = config.read().strip()
         if not config_content:
-            raise ValueError("❌ config.json is empty. Please add some playlists.")
+            raise ValueError("❌ config.json is empty. Please add user data.")
         config_data = json.loads(config_content)
 
     for playlist in playlist_data:
         url = playlist["url"]
         tags = playlist["tags"]
-        print(url)
+
+        # put a check to make sure url and tags isn't empty
 
         platform = detect_platform(url)
-        print(platform)
+        tags.insert(0, platform) #platform + genre
 
-        tags.insert(0, platform)
-        print(tags)
-        print()
-    
-    #loop for every entry in JSON tracking file
-        #platform = detect_platform()
-        #platform + genre
-
-
-        #platform = youtube
-        #download new playlist songs into youtube folder found in user_config
-        #set title = album for plex
-        #check every mp3 in youtube folder is tagged
-
+        if platform == "youtube":
+            # download new playlist songs into temp folder
+            youtube_download(url)
+            
+            # set tile = album for plex
+            set_album_to_title("temp")
+            
+            # tag every file in the temp folder
+            
+            # move every single file in the temp folder to the final location
+            print()
+            
+        elif platform == "soundcloud":
+            # download new playlist songs into temp folder
+            
+            # set tile = album for plex
+            
+            # tag every file in the temp folder
+            
+            # move every single file in the temp folder to the final location
+            print()
+            
+        elif platform == "spotify":
+            # download new playlist songs into temp folder
+            
+            # set tile = album for plex
+            
+            # tag every file in the temp folder
+            
+            # move every single file in the temp folder to the final location
+            print()
         
-        #platform = soundcloud
-        #download new playlist songs into soundcloud folder found in user_config
-        #set title = album for plex
-        #check every mp3 in soundcloud folder is tagged
-
-        
-        #platform = spotify
-        #download new playlist songs into spotify folder found in user_config
-        #set title = album for plex
-        #check every mp3 in spotify folder is tagged
-    
-
+        else:
+            print() # raise some error here too
 
 def detect_platform(url):
     if "youtube.com" in url or "youtu.be" in url:
@@ -61,22 +69,43 @@ def detect_platform(url):
         return "spotify"
     return "unknown"
 
-def tag_mp3(mp3_path):
-    try:
-        audio = EasyID3(mp3_path)
-        title = audio.get("title", [None])[0]
-        album = audio.get("album", [None])[0]
-        if title and album is None:
-            audio["album"] = title
-            audio.save()
-            print(f"✅ Set album tag to match title: {title}")
-        elif title == album:
-            print(f"{title} ✅ Album tag and title match")
-        else:
-            print(f"⚠️ No title found in {mp3_path}, skipping album tag update.")
-    except Exception as e:
-        print(f"❌ Error editing {mp3_path}: {e}")
+def youtube_download(url):
+    youtube_command = [
+        "yt-dlp",
+        "-x", "--audio-format", "mp3",
+        "--paths", "temp",
+        "--embed-thumbnail",
+        "--add-metadata",
+        "--output", "%(title)s.%(ext)s",
+        "--download-archive", "yt-dlp_archive.txt",
+        url
+    ]
 
+    subprocess.run(youtube_command, check=True)
+
+def set_album_to_title(temp_dir):
+    for filename in os.listdir(temp_dir):
+        if filename.lower().endswith(".mp3"):
+            mp3_path = os.path.join(temp_dir, filename)
+
+            try:
+                audio = EasyID3(mp3_path)
+
+                title = audio.get("title", [None])[0]
+                album = audio.get("album", [None])[0]
+
+                if title and album is None:
+                    audio["album"] = title
+                    print(f"✅ Set album = title: {title}")
+                elif title == album:
+                    print(f"✔️ Album already matches title: {title}")
+                else:
+                    print(f"⚠️ No title in: {filename}, skipping album set")
+
+                audio.save()
+
+            except Exception as e:
+                print(f"❌ Error processing {mp3_path}: {e}")
 
 def main():
     
@@ -101,7 +130,7 @@ youtube_url = "https://www.youtube.com/playlist?list=PLKIsbG8iT8bsNTizG8Byx2goiW
 youtube_command = [
     "yt-dlp",
     "-x", "--audio-format", "mp3",
-    "--paths", r"E:\Plex\Music\Youtube",
+    "--paths", "temp",
     "--embed-thumbnail",
     "--add-metadata",
     "--output", "%(title)s.%(ext)s",
