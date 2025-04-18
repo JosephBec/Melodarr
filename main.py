@@ -47,13 +47,16 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
             
         elif platform == "soundcloud":
             # download new playlist songs into temp folder
+            soundcloud_download(url)
             
             # set tile = album for plex
+            set_album_to_title("temp")
             
             # tag every file in the temp folder
+            write_multiple_genres("temp", tags)
             
             # move every single file in the temp folder to the final location
-            print()
+            move_mp3s_to_destination("temp", soundcloud_dl_path)
             
         elif platform == "spotify":
             # download new playlist songs into temp folder
@@ -91,6 +94,20 @@ def youtube_download(url):
 
     subprocess.run(youtube_command, check=True)
 
+def soundcloud_download(url):
+    soundcloud_command = [
+        "yt-dlp",
+        "-x", "--audio-format", "mp3",
+        "--paths", "temp",
+        "--embed-thumbnail",
+        "--add-metadata",
+        "--output", "%(title)s.%(ext)s",
+        "--download-archive", "yt-dlp_archive.txt",
+        url
+    ]
+
+    subprocess.run(soundcloud_command, check=True)
+
 def set_album_to_title(temp_dir):
     for filename in os.listdir(temp_dir):
         if filename.lower().endswith(".mp3"):
@@ -102,7 +119,11 @@ def set_album_to_title(temp_dir):
                 title = audio.get("title", [None])[0]
                 album = audio.get("album", [None])[0]
 
-                if title and album is None:
+                print(title)
+                print(album)
+                print(filename.upper())
+
+                if title:
                     audio["album"] = title
                     print(f"✅ Set album = title: {title}")
                 elif title == album:
