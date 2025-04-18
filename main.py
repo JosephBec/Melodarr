@@ -1,5 +1,8 @@
+from mutagen.id3 import ID3, ID3NoHeaderError, TCON
 from mutagen.easyid3 import EasyID3
+from mutagen.mp3 import MP3
 import subprocess
+import shutil
 import json
 import os
 
@@ -20,6 +23,10 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
         url = playlist["url"]
         tags = playlist["tags"]
 
+        youtube_dl_path = config_data["youtube_dl_path"]
+        soundcloud_dl_path = config_data["soundcloud_dl_path"]
+        spotify_dl_path = config_data["spotify_dl_path"]
+
         # put a check to make sure url and tags isn't empty
 
         platform = detect_platform(url)
@@ -33,9 +40,10 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
             set_album_to_title("temp")
             
             # tag every file in the temp folder
+            write_multiple_genres("temp", tags)
             
             # move every single file in the temp folder to the final location
-            print()
+            move_mp3s_to_destination("temp", youtube_dl_path)
             
         elif platform == "soundcloud":
             # download new playlist songs into temp folder
@@ -107,6 +115,66 @@ def set_album_to_title(temp_dir):
             except Exception as e:
                 print(f"❌ Error processing {mp3_path}: {e}")
 
+def write_multiple_genres(temp_dir, genre_list):
+    """
+    Sets multiple genre tags on each .mp3 file in temp_dir using ID3v2.4.
+    Overwrites any existing genre data.
+    """
+    for filename in os.listdir(temp_dir):
+        if filename.lower().endswith(".mp3"):
+            mp3_path = os.path.join(temp_dir, filename)
+
+            try:
+                # Load MP3 and access ID3 tags
+                audio = MP3(mp3_path)
+
+                # Add tag block if missing
+                if audio.tags is None:
+                    audio.add_tags()
+                    audio.save()
+
+                # Clear previous genres
+                audio.tags.delall("TCON")
+
+                # Add new genres
+                audio.tags.add(TCON(encoding=3, text=genre_list))
+
+                # Save with ID3v2.4
+                audio.save(v2_version=4)
+
+                print(f"✅ Set genres on {filename}: {genre_list}")
+
+            except Exception as e:
+                print(f"❌ Error processing {filename}: {e}")
+
+def set_genre_tags(temp_dir, genre_tags):
+    for filename in os.listdir(temp_dir):
+        if filename.lower().endswith(".mp3"):
+            mp3_path = os.path.join(temp_dir, filename)
+
+            try:
+                audio = EasyID3(mp3_path)
+                audio["genre"] = "\\".join(genre_tags)
+                audio.save()
+                print(f"🏷️ Set genre on {filename}: {', '.join(genre_tags)}")
+
+            except Exception as e:
+                print(f"❌ Error setting genre for {mp3_path}: {e}")
+
+def move_mp3s_to_destination(temp_dir, destination_dir):
+    os.makedirs(destination_dir, exist_ok=True)
+
+    for filename in os.listdir(temp_dir):
+        if filename.lower().endswith(".mp3"):
+            src = os.path.join(temp_dir, filename)
+            dest = os.path.join(destination_dir, filename)
+
+            try:
+                shutil.move(src, dest)
+                print(f"📦 Moved {filename} to {destination_dir}")
+            except Exception as e:
+                print(f"❌ Failed to move {filename}: {e}")
+
 def main():
     
 
@@ -119,29 +187,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-"""
-
 #soundcloud_url = r"https://soundcloud.com/interscope/rixton-me-and-my-broken-heart"
-soundcloud_command = ["scdl", "-l", soundcloud_url]
-subprocess.run(soundcloud_command, check=True)
-
-
-youtube_url = "https://www.youtube.com/playlist?list=PLKIsbG8iT8bsNTizG8Byx2goiWU3nBxs6"
-youtube_command = [
-    "yt-dlp",
-    "-x", "--audio-format", "mp3",
-    "--paths", "temp",
-    "--embed-thumbnail",
-    "--add-metadata",
-    "--output", "%(title)s.%(ext)s",
-    "--download-archive", "yt-dlp_archive.txt",
-    youtube_url
-]
-
-subprocess.run(youtube_command, check=True)
-
-#set_album_same_as_title(r"D:\Projects\Melodarr\Coldplay - Viva La Vida (Official Video).mp3")
-#set_album_same_as_title(r"D:\Projects\Melodarr\O-Zone - Dragostea Din Tei [Official Video].mp3")
-#set_album_same_as_title(r"D:\Projects\Melodarr\Rick Astley - Never Gonna Give You Up (Official Music Video).mp3")
-
-"""
+#soundcloud_command = ["scdl", "-l", soundcloud_url]
+#subprocess.run(soundcloud_command, check=True)
