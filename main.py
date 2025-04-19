@@ -46,7 +46,7 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
             move_mp3s_to_destination("temp", youtube_dl_path)
 
             # download all json files for current playlist
-            #yt_sc_json_downloader(url)
+            yt_sc_json_downloader(url)
             
             print()
             print()
@@ -56,17 +56,18 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
             # loop through all json files for current playlist
             for filename in os.listdir("temp"):
                 song_title = None
+                song_url = None
                 if filename.endswith(".info.json"):
                     json_path = os.path.join("temp", filename)
                     try:
                         with open(json_path, "r", encoding="utf-8") as f:
                             metadata = json.load(f)
                             song_title = metadata.get("title", "Unknown Title")
-                            #print(f"🎵 {song_title}")
+                            song_url = metadata.get("webpage_url", "Unknown URL")
                     except Exception as e:
                         print(f"❌ Failed to read {filename}: {e}")
 
-                verify_and_tag_song(youtube_dl_path, song_title, tags, " ")
+                verify_and_add_genres_if_missing(youtube_dl_path, song_title, tags, song_url)
             
                 # make sure every json file corelates to a mp3 in destination folder
                 
@@ -75,6 +76,8 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
                 # if mp3 does exist make sure that it has the correct tag
                 
                 # if mp3 does exist missing the tag correct it
+
+            delete_all_json_files("temp")
             print()
             
         elif platform == "soundcloud":
@@ -181,6 +184,44 @@ def set_album_to_title(temp_dir):
             except Exception as e:
                 print(f"❌ Error processing {mp3_path}: {e}")
 
+def verify_and_add_genres_if_missing(youtube_dl_path, song_title, genre_tags, song_url):
+    filename = f"{song_title}.mp3"
+    filepath = os.path.join(youtube_dl_path, filename)
+
+    if not os.path.exists(filepath):
+        print(f"❌ Missing: {filename} from playlist source: {song_url}")
+        return False
+
+    try:
+        audio = MP3(filepath)
+
+        if audio.tags is None:
+            audio.add_tags()
+            audio.save()
+            audio = MP3(filepath)  # Re-load after saving tags
+
+        existing_genres = []
+        for frame in audio.tags.getall("TCON"):
+            existing_genres.extend(frame.text)
+
+        # Deduplicate and merge genres
+        updated_genres = list(set(existing_genres + genre_tags))
+
+        if set(genre_tags).issubset(set(existing_genres)):
+            print(f"✅ All genre tags already present on: {filename}")
+        else:
+            # Update only if missing genres were found
+            audio.tags.delall("TCON")
+            audio.tags.add(TCON(encoding=3, text=updated_genres))
+            audio.save(v2_version=4)
+            print(f"🔄 Updated genres for {filename}: {updated_genres}")
+
+        return True
+
+    except Exception as e:
+        print(f"❌ Error tagging {filename}: {e}")
+        return False
+
 def write_multiple_genres(temp_dir, genre_list):
     """
     Sets multiple genre tags on each .mp3 file in temp_dir using ID3v2.4.
@@ -213,20 +254,6 @@ def write_multiple_genres(temp_dir, genre_list):
             except Exception as e:
                 print(f"❌ Error processing {filename}: {e}")
 
-def set_genre_tags(temp_dir, genre_tags):
-    for filename in os.listdir(temp_dir):
-        if filename.lower().endswith(".mp3"):
-            mp3_path = os.path.join(temp_dir, filename)
-
-            try:
-                audio = EasyID3(mp3_path)
-                audio["genre"] = "\\".join(genre_tags)
-                audio.save()
-                print(f"🏷️ Set genre on {filename}: {', '.join(genre_tags)}")
-
-            except Exception as e:
-                print(f"❌ Error setting genre for {mp3_path}: {e}")
-
 def move_mp3s_to_destination(temp_dir, destination_dir):
     os.makedirs(destination_dir, exist_ok=True)
 
@@ -249,6 +276,8 @@ def verify_and_tag_song(dl_path, song_title, genre_tags, song_url):
     filepath = os.path.join(dl_path, filename)
 
     if os.path.exists(filepath):
+        print(f"✅ Found: {filename}")
+        """
         print(f"✅ Found: {filename} — tagging with genres: {genre_tags}")
 
         try:
@@ -257,11 +286,27 @@ def verify_and_tag_song(dl_path, song_title, genre_tags, song_url):
             audio.save()
         except Exception as e:
             print(f"⚠️ Error tagging {filename}: {e}")
+        """
 
         return True
     else:
         print(f"❌ Missing: {filename} from playlist source: {song_url}")
         return False
+
+def delete_all_json_files(folder):
+    all_deleted = True
+
+    for filename in os.listdir(folder):
+        if filename.endswith(".json"):
+            file_path = os.path.join(folder, filename)
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                all_deleted = False
+                print(f"❌ Failed to delete {file_path}: {e}")
+
+    if all_deleted:
+        print("✅ Successfully cleared all .JSON files.")
 
 def main():
     
