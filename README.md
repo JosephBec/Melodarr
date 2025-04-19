@@ -40,6 +40,7 @@ melodarr/
 │   ├── yt-dlp.txt
 │   ├── scdl.txt
 │   └── spotdl.txt
+├── temp/
 ```
 
 ## 📄 License
@@ -51,7 +52,6 @@ Melodarr is licensed under the [GNU General Public License v3.0](https://www.gnu
 Melodarr leverages the following open-source projects:
 
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-- [scdl](https://github.com/flyingrub/scdl)
 - [zotify](https://github.com/zotify-dev/zotify)
 - [mutagen](https://mutagen.readthedocs.io/en/latest/)
 
