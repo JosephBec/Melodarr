@@ -34,7 +34,7 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
 
         if platform == "youtube":
             # download new playlist songs into temp folder
-            youtube_download(url)
+            yt_sc_mp3_downloader(url)
             
             # set tile = album for plex
             set_album_to_title("temp")
@@ -44,19 +44,66 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
             
             # move every single file in the temp folder to the final location
             move_mp3s_to_destination("temp", youtube_dl_path)
+
+            # download all json files for current playlist
+            #yt_sc_json_downloader(url)
+            
+            print()
+            print()
+            print()
+            print()
+
+            # loop through all json files for current playlist
+            for filename in os.listdir("temp"):
+                song_title = None
+                if filename.endswith(".info.json"):
+                    json_path = os.path.join("temp", filename)
+                    try:
+                        with open(json_path, "r", encoding="utf-8") as f:
+                            metadata = json.load(f)
+                            song_title = metadata.get("title", "Unknown Title")
+                            #print(f"🎵 {song_title}")
+                    except Exception as e:
+                        print(f"❌ Failed to read {filename}: {e}")
+
+                verify_and_tag_song(youtube_dl_path, song_title, tags, " ")
+            
+                # make sure every json file corelates to a mp3 in destination folder
+                
+                # if that mp3 doesn't exist try and download it again
+                
+                # if mp3 does exist make sure that it has the correct tag
+                
+                # if mp3 does exist missing the tag correct it
+            print()
             
         elif platform == "soundcloud":
             # download new playlist songs into temp folder
-            soundcloud_download(url)
+            #yt_sc_mp3_downloader(url)
             
             # set tile = album for plex
-            set_album_to_title("temp")
+            #set_album_to_title("temp")
             
             # tag every file in the temp folder
-            write_multiple_genres("temp", tags)
+            #write_multiple_genres("temp", tags)
             
             # move every single file in the temp folder to the final location
-            move_mp3s_to_destination("temp", soundcloud_dl_path)
+            #move_mp3s_to_destination("temp", soundcloud_dl_path)
+
+            # download all json files for current playlist
+            #yt_sc_json_downloader(url)
+            
+            # loop through all json files for current playlist
+            
+                # make sure every json file corelates to a mp3 in destination folder
+                
+                # if that mp3 doesn't exist try and download it again
+                
+                # if mp3 does exist make sure that it has the correct tag
+                
+                # if mp3 does exist missing the tag correct it
+
+            print()
             
         elif platform == "spotify":
             # download new playlist songs into temp folder
@@ -80,7 +127,7 @@ def detect_platform(url):
         return "spotify"
     return "unknown"
 
-def youtube_download(url):
+def yt_sc_mp3_downloader(url):
     youtube_command = [
         "yt-dlp",
         "-x", "--audio-format", "mp3",
@@ -93,20 +140,18 @@ def youtube_download(url):
     ]
 
     subprocess.run(youtube_command, check=True)
-
-def soundcloud_download(url):
-    soundcloud_command = [
+    
+def yt_sc_json_downloader(url):
+    youtube_json_command = [
         "yt-dlp",
-        "-x", "--audio-format", "mp3",
+        "--skip-download",
         "--paths", "temp",
-        "--embed-thumbnail",
-        "--add-metadata",
-        "--output", "%(title)s.%(ext)s",
-        "--download-archive", "yt-dlp_archive.txt",
+        "--write-info-json",
+        "--no-write-playlist-metafiles",
         url
     ]
 
-    subprocess.run(soundcloud_command, check=True)
+    subprocess.run(youtube_json_command, check=True)
 
 def set_album_to_title(temp_dir):
     for filename in os.listdir(temp_dir):
@@ -195,6 +240,28 @@ def move_mp3s_to_destination(temp_dir, destination_dir):
                 print(f"📦 Moved {filename} to {destination_dir}")
             except Exception as e:
                 print(f"❌ Failed to move {filename}: {e}")
+
+def verify_and_tag_song(dl_path, song_title, genre_tags, song_url):
+    """
+    Checks if the song exists in the given path. If it exists, applies genre tags.
+    """
+    filename = f"{song_title}.mp3"
+    filepath = os.path.join(dl_path, filename)
+
+    if os.path.exists(filepath):
+        print(f"✅ Found: {filename} — tagging with genres: {genre_tags}")
+
+        try:
+            audio = EasyID3(filepath)
+            audio["genre"] = [", ".join(genre_tags)]
+            audio.save()
+        except Exception as e:
+            print(f"⚠️ Error tagging {filename}: {e}")
+
+        return True
+    else:
+        print(f"❌ Missing: {filename} from playlist source: {song_url}")
+        return False
 
 def main():
     
