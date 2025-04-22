@@ -46,13 +46,15 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
             move_mp3s_to_destination("temp", youtube_dl_path)
 
             # download all json files for current playlist
-            yt_sc_json_downloader(url)
+            #yt_sc_json_downloader(url)
+            dump_playlist_metadata_to_file(url, "temp/playlist.json")
             
             print()
             print()
             print()
             print()
 
+            """
             # loop through all json files for current playlist
             for filename in os.listdir("temp"):
                 song_title = None
@@ -67,6 +69,7 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
                     except Exception as e:
                         print(f"❌ Failed to read {filename}: {e}")
 
+                print(song_url)
                 verify_and_add_genres_if_missing(youtube_dl_path, song_title, tags, song_url)
             
                 # make sure every json file corelates to a mp3 in destination folder
@@ -76,8 +79,8 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
                 # if mp3 does exist make sure that it has the correct tag
                 
                 # if mp3 does exist missing the tag correct it
-
-            delete_all_json_files("temp")
+            """
+            #delete_all_json_files("temp")
             print()
             
         elif platform == "soundcloud":
@@ -155,6 +158,30 @@ def yt_sc_json_downloader(url):
     ]
 
     subprocess.run(youtube_json_command, check=True)
+
+def dump_playlist_metadata_to_file(playlist_url, output_path):
+    try:
+        result = subprocess.run(
+            ["yt-dlp", "--skip-download", "--dump-single-json", playlist_url],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        # Create output folder if it exists
+        output_dir = os.path.dirname(output_path)
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+
+        # Save output to file
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(result.stdout)
+
+        print(f"✅ Playlist metadata saved to {output_path}")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ yt-dlp failed: {e.stderr}")
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
 
 def set_album_to_title(temp_dir):
     for filename in os.listdir(temp_dir):
