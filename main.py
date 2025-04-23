@@ -6,24 +6,25 @@ import shutil
 import json
 import os
 
+# this is the main function
 def download_songs(playlist_JSON_path: str, config_JSON_path: str):
-    with open(playlist_JSON_path) as playlists:
+    with open(playlist_JSON_path) as playlists: # first we get the info for the playlists
         playlist_content = playlists.read().strip()
         if not playlist_content:
             raise ValueError("❌ playlists.json is empty. Please add some playlists.")
         playlist_data = json.loads(playlist_content)
 
-    with open(config_JSON_path) as config:
+    with open(config_JSON_path) as config: # then we load in the data for the user config stuff
         config_content = config.read().strip()
         if not config_content:
             raise ValueError("❌ config.json is empty. Please add user data.")
         config_data = json.loads(config_content)
 
-    for playlist in playlist_data:
-        url = playlist["url"]
+    for playlist in playlist_data: # loop through the different playlist urls
+        url = playlist["url"] # this is from the playlist_json
         tags = playlist["tags"]
 
-        youtube_dl_path = config_data["youtube_dl_path"]
+        youtube_dl_path = config_data["youtube_dl_path"] # all this is from config_json
         soundcloud_dl_path = config_data["soundcloud_dl_path"]
         spotify_dl_path = config_data["spotify_dl_path"]
 
@@ -124,7 +125,7 @@ def download_songs(playlist_JSON_path: str, config_JSON_path: str):
         else:
             print() # raise some error here too
 
-def detect_platform(url):
+def detect_platform(url): # real simple, used to properly tag the mp3's
     if "youtube.com" in url or "youtu.be" in url:
         return "youtube"
     elif "soundcloud.com" in url:
@@ -133,21 +134,21 @@ def detect_platform(url):
         return "spotify"
     return "unknown"
 
-def yt_sc_mp3_downloader(url):
+def yt_sc_mp3_downloader(url): # so yt-dlp is used to download from both youtube (yt) and soundcloud (sc), spotify is gonna be something else
     youtube_command = [
         "yt-dlp",
-        "-x", "--audio-format", "mp3",
-        "--paths", "temp",
-        "--embed-thumbnail",
-        "--add-metadata",
-        "--output", "%(title)s.%(ext)s",
-        "--download-archive", "yt-dlp_archive.txt",
+        "-x", "--audio-format", "mp3", # final resulting files will be in mp3 format
+        "--paths", "temp", # download them into the temp file
+        "--embed-thumbnail", # self explanitory 
+        "--add-metadata", # self explanitory 
+        "--output", "%(title)s.%(ext)s", # file name is the gonna be title.extension (.mp3 for us)
+        "--download-archive", "yt-dlp_archive.txt", # log the mp3 we downloaded, only download a mp3 if it hasn't been downloaded before 
         url
     ]
 
     subprocess.run(youtube_command, check=True)
     
-def yt_sc_json_downloader(url):
+def yt_sc_json_downloader(url): # this downloads an individual json for each song in a playlist
     youtube_json_command = [
         "yt-dlp",
         "--skip-download",
@@ -159,7 +160,7 @@ def yt_sc_json_downloader(url):
 
     subprocess.run(youtube_json_command, check=True)
 
-def dump_playlist_metadata_to_file(playlist_url, output_path):
+def dump_playlist_metadata_to_file(playlist_url, output_path): # this downloads a single json for the whole playlist
     try:
         result = subprocess.run(
             ["yt-dlp", "--skip-download", "--dump-single-json", playlist_url],
@@ -183,7 +184,7 @@ def dump_playlist_metadata_to_file(playlist_url, output_path):
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
 
-def set_album_to_title(temp_dir):
+def set_album_to_title(temp_dir): # plex groups by album, if a song doesn't have an album, it gets grouped into no album or something like that and forces every song to have the same cover art this circumvents that
     for filename in os.listdir(temp_dir):
         if filename.lower().endswith(".mp3"):
             mp3_path = os.path.join(temp_dir, filename)
@@ -211,9 +212,9 @@ def set_album_to_title(temp_dir):
             except Exception as e:
                 print(f"❌ Error processing {mp3_path}: {e}")
 
-def verify_and_add_genres_if_missing(youtube_dl_path, song_title, genre_tags, song_url):
-    filename = f"{song_title}.mp3"
-    filepath = os.path.join(youtube_dl_path, filename)
+def verify_and_add_genres_if_missing(youtube_dl_path, song_title, genre_tags, song_url): # used to verify all the songs are downloaded and tagged propperly 
+    filename = f"{song_title}.mp3" # this also is used for niche songs that are in multiple playlists. bc of the arhcive setting stopping us from downloading the same song
+    filepath = os.path.join(youtube_dl_path, filename) # multiple times, we have to go and retag an existing song so it pops up in both playlists. 
 
     if not os.path.exists(filepath):
         print(f"❌ Missing: {filename} from playlist source: {song_url}")
@@ -281,7 +282,7 @@ def write_multiple_genres(temp_dir, genre_list):
             except Exception as e:
                 print(f"❌ Error processing {filename}: {e}")
 
-def move_mp3s_to_destination(temp_dir, destination_dir):
+def move_mp3s_to_destination(temp_dir, destination_dir): # we keep the songs in the temp directory, once we are done w the songs we move them with this function
     os.makedirs(destination_dir, exist_ok=True)
 
     for filename in os.listdir(temp_dir):
@@ -295,32 +296,7 @@ def move_mp3s_to_destination(temp_dir, destination_dir):
             except Exception as e:
                 print(f"❌ Failed to move {filename}: {e}")
 
-def verify_and_tag_song(dl_path, song_title, genre_tags, song_url):
-    """
-    Checks if the song exists in the given path. If it exists, applies genre tags.
-    """
-    filename = f"{song_title}.mp3"
-    filepath = os.path.join(dl_path, filename)
-
-    if os.path.exists(filepath):
-        print(f"✅ Found: {filename}")
-        """
-        print(f"✅ Found: {filename} — tagging with genres: {genre_tags}")
-
-        try:
-            audio = EasyID3(filepath)
-            audio["genre"] = [", ".join(genre_tags)]
-            audio.save()
-        except Exception as e:
-            print(f"⚠️ Error tagging {filename}: {e}")
-        """
-
-        return True
-    else:
-        print(f"❌ Missing: {filename} from playlist source: {song_url}")
-        return False
-
-def delete_all_json_files(folder):
+def delete_all_json_files(folder): # clears out the temp folder from all the json files
     all_deleted = True
 
     for filename in os.listdir(folder):
