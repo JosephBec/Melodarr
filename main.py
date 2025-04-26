@@ -160,6 +160,18 @@ def yt_sc_json_downloader(url): # this downloads an individual json for each son
 
     subprocess.run(youtube_json_command, check=True)
 
+def spotify_downloader(url):
+    zotify_command = [
+        "zotify",
+        "--download-format", "mp3",
+        "--download-quality", "high",
+        "--retry-attempts", "3",
+        "--language", "en",
+        "--root-path", "C:\Users\Joey\Desktop",
+        "--output", "{song_name}.{ext}",
+        url
+    ]
+
 def dump_playlist_metadata_to_file(playlist_url, output_path): # this downloads a single json for the whole playlist
     try:
         result = subprocess.run(
